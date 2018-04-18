@@ -1,0 +1,86 @@
+---
+title: "Loop Assignment"
+author: "Friedrich Knuth"
+date: "February 11, 2015"
+output: html_document
+---
+
+```{r}
+data(iris)
+head(iris)
+sp_ids = unique(iris$Species)
+
+output = matrix(0, nrow=length(sp_ids), ncol=ncol(iris)-1)
+rownames(output) = sp_ids
+colnames(output) = names(iris[ , -ncol(iris)])
+
+for(i in seq_along(sp_ids)) {
+    iris_sp = subset(iris, subset=Species == sp_ids[i], select=-Species)
+    for(j in 1:(ncol(iris_sp))) {
+        x = 0
+        y = 0
+        if (nrow(iris_sp) > 0) {
+            for(k in 1:nrow(iris_sp)) {
+                x = x + iris_sp[k, j]
+                y = y + 1
+            }
+            output[i, j] = x / y 
+        }
+    }
+}
+output
+```
+
+**Q1. Describe the values stored in the object `output`. In other words what did the loops create?**
+
+```{r}
+iris_sp = subset(iris, Species == "setosa")
+mean(iris_sp$Sepal.Length)
+```
+
+*The preceeding code shows us that the mean `Sepal.Length` for `setosa` is 5.006. It seems that the for loop generated an output reflecting the mean value for `Sepal.Length`, `Sepal.Width`, `Petal.Length` and `Petal.Width`.*
+
+**Q2. Describe using pseudo-code how output was calculated.**
+
+- For every species  
+    - For every physical descriptor  
+        - For every observation  
+            - Add the value sequentially for every observation to x (x starts at 0)  
+            - Add 1 sequentially for every observation to y (y starts at 0)  
+        
+Within the `output` matrix, for every row entry in sequence along `sp_ids` (ie for every species) and in columns from `iris_sp` (ie every physical descriptor) devide the final sum of physical descriptor values (x) by the final
+sum of all observations (y). This results is the mean value for each physical descriptor by species, represented by the matrix `output`.
+        
+**Q3. The variables in the loop were named so as to be vague. How can the objects `output`, `x`, and `y` could be renamed such that it is clearer what is occurring in the loop.**
+
+`output` = species_mean  
+`x` = sample_sum  
+`y` = samples_count  
+
+**Q4. It is possible to accomplish the same task using fewer lines of code? Please suggest one other way to calculate output that decreases the number of loops by 1.**
+
+`if (nrow(iris_sp) > 0) {}` seems unnecessary. The code produces the same result without that loop. I am not sure what it is for. 
+
+```{r}
+data(iris)
+head(iris)
+sp_ids = unique(iris$Species)
+
+output = matrix(0, nrow=length(sp_ids), ncol=ncol(iris)-1)
+rownames(output) = sp_ids
+colnames(output) = names(iris[ , -ncol(iris)])
+
+for(i in seq_along(sp_ids)) {
+    iris_sp = subset(iris, subset=Species == sp_ids[i], select=-Species)
+    for(j in 1:(ncol(iris_sp))) {
+        x = 0
+        y = 0
+        for(k in 1:nrow(iris_sp)) {
+            x = x + iris_sp[k, j]
+            y = y + 1
+            }
+            output[i, j] = x / y 
+    }
+}
+output
+```

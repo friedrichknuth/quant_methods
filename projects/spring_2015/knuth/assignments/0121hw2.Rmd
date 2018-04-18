@@ -1,0 +1,59 @@
+---
+title: "Homework 2"
+author: "Friedrich"
+date: "January 22, 2015"
+output: html_document
+---
+**Question 1**
+
+The sum of a sequence. You have a vector "x" with the numbers 1:10. Write a for loop that will produce a vector "y" that contains the sum of x up to that index of x. So for example the elements are x are 1, 2, 3, and so on and the elements of y would be 1, 3, 6, and so on.
+
+*First we create variables x as a list of values one through ten and y as NULL. At this point x is stored as an integer and y is an undefined class. I understand R to assign the class of y on the fly with subsequent commands in the for loop. The for loop states that for the iteration of values one though the length of the list x, known as i, the i'th value in list (vector) y equals the sum of values one through i in list (vector) x.*
+```{r}
+x = 1:10
+y = NULL
+for(i in 1:length(x)){
+  y[i] = sum(x[1:i])
+}
+print(y)
+```
+
+**Questions 2.** 
+
+Modify your for loop so that if the sum is great than 10 the value of y is set to NA
+
+*Here we have nested an if statement into the previously created for loop which states that if the currently iterated value i of y, determined by the sum of all iterated values in list x up to i is greater that 10 set y at i equal to NA, not simply just print NA.*
+
+```{r}
+x = 1:10
+y = NULL
+for(i in 1:length(x)){
+  y[i] = sum(x[1:i])
+  if(y[i] > 10) {
+    y[i] = NA
+  }
+}
+print(y)
+```
+
+**Question 3.** 
+
+Place your for loop into a function that accepts as its argument any vector of arbitrary length and it will return y.
+
+*Here I have embedded the for loop into a function using argument x throughout the embedded for loop and as an input into the function. I have also embedded the creation of a temporary argument y=NULL into the function. y=NULL only exists while the function is running. The function is called upon by writing return_y() and entering any predefined argument into the parentheses. I then define argument t as a list (vector) from one through ten and call it using function return_y(t), which results in the desired output. Note: if a parameter for t that is not a vector is called upon the function breaks.*
+
+
+```{r}
+return_y = function(x) {
+  y=NULL
+  for(i in 1:length(x)){
+    y[i] = sum(x[1:i])
+    if(y[i] > 10) {
+      y[i] = NA
+    }
+  }
+  print(y)
+}
+t=1:10
+return_y(t)
+```

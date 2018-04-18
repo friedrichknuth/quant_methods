@@ -1,0 +1,156 @@
+---
+title: "Environmental Variable Extract at Various Grains with Fish Count"
+author: "Friedrich Knuth"
+date: "February 25, 2015"
+output: html_document
+---
+
+manually set your working directory
+
+load your libraries
+```{r}
+install.packages(c("maps","sp","maptools","rgdal","lattice","classInt", "raster", "parallel", "snow"))
+library(sp)
+library(raster)
+library(maps)
+library(maptools)
+library(rgdal)
+library(lattice)
+library(classInt)
+library(MASS)
+library(parallel)
+library(snow)
+```
+
+set the paths to your data and output directories. required data are envrionemntal raster grids, saved as georeferences TIFF files with .tif extension and polygon ESRI shapefiles saved as .shp. to free up memory, intermediate products will be saved throughout the script.
+```{r}
+raster_path = './rawdata/sw2/envirorasters/'
+grid_path = './rawdata/sw2/sitegridshapefiles/'
+product_path = './products/'
+```
+
+load environmental rasters grid predictors. path to data is set using paste(raster_path, "depth",'.tif', sep='') ensure all rasters are georeferenced .tif files, have the same coordinate system, same spatial extent and are at the same cell size. values with no data should be 'null' or 'na'.
+```{r}
+depth = raster(paste(raster_path, "depth",'.tif', sep=''))
+slope = raster(paste(raster_path, "slope",'.tif', sep=''))
+slopeofslope = raster(paste(raster_path, "slopeofslope",'.tif', sep=''))
+backscatter = raster(paste(raster_path, "backscatter",'.tif', sep=''))
+rugosity = raster(paste(raster_path, "rugosity",'.tif', sep=''))
+plancurvature = raster(paste(raster_path, "plancurvature",'.tif', sep=''))
+distancetoshelf = raster(paste(raster_path, "distancetoshelf",'.tif', sep=''))
+```
+
+load shapefile grids. path to data is set using paste(grid_path). grids, which can be conceived as sites at different scales, have been established centered along survey track lines at 25, 50, 100, 250, 500 and 1000 square meters. fish have been counted within a given grid cell (grain).
+```{r}
+grids_count = list()
+grids_count$m25 = readOGR("./rawdata/sw2/sitegridshapefiles", "sw2grid25m_count")
+grids_count$m50 = readOGR("./rawdata/sw2/sitegridshapefiles", "sw2grid50m_count")
+grids_count$m100 = readOGR("./rawdata/sw2/sitegridshapefiles", "sw2grid100m_count")
+grids_count$m250 = readOGR("./rawdata/sw2/sitegridshapefiles", "sw2grid250m_count")
+grids_count$m500 = readOGR("./rawdata/sw2/sitegridshapefiles", "sw2grid500m_count")
+grids_count$m1000 = readOGR("./rawdata/sw2/sitegridshapefiles", "sw2grid1000m_count")
+```
+
+calculate mean and sd raster_stack values within a polygon grid. this must be done at each of the polygon grid scales, which we will refer to as grain. these values are then appended as a column to the polygon grid file grids_count.
+```{r}
+# Mean
+beginCluster( detectCores()-1 )
+
+depth_extract_mean = sapply(grids_count, function(x) extract(depth, x, fun=mean, na.rm=T))
+for (i in 1:length(grids_count))
+    grids_count[[i]]@data$depth_mean = depth_extract_mean[[i]]
+
+slope_extract_mean = sapply(grids_count, function(x) extract(slope, x, fun=mean, na.rm=T))
+for (i in 1:length(grids_count))
+    grids_count[[i]]@data$slope_mean = slope_extract_mean[[i]]
+
+slopeofslope_extract_mean = sapply(grids_count, function(x) extract(slopeofslope, x, fun=mean, na.rm=T)
+for (i in 1:length(grids_count))
+    grids_count[[i]]@data$slopeofslope_mean = slopeofslope_extract_mean[[i]]
+
+backscatter_extract_mean = sapply(grids_count, function(x) extract(backscatter, x, fun=mean, na.rm=T))
+for (i in 1:length(grids_count))
+    grids_count[[i]]@data$backscatter_mean = backscatter_extract_mean[[i]]
+
+rugosity_extract_mean = sapply(grids_count, function(x) extract(rugosity, x, fun=mean, na.rm=T))
+for (i in 1:length(grids_count))
+    grids_count[[i]]@data$rugosity_mean = rugosity_extract_mean[[i]]
+
+plancurvature_extract_mean = sapply(grids_count, function(x) extract(plancurvature, x, fun=mean, na.rm=T))
+for (i in 1:length(grids_count))
+    grids_count[[i]]@data$plancurvature_mean = plancurvature_extract_mean[[i]]
+
+distancetoshelf_extract_mean = sapply(grids_count, function(x) extract(distancetoshelf, x, fun=mean, na.rm=T))
+for (i in 1:length(grids_count))
+    grids_count[[i]]@data$distancetoshelf_mean = distancetoshelf_extract_mean[[i]]
+
+# Standard Deviation
+depth_extract_sd = sapply(grids_count, function(x) extract(depth, x, fun=sd, na.rm=T))
+for (i in 1:length(grids_count)) 
+    grids_count[[i]]@data$depth_sd = depth_extract_sd[[i]]
+
+slope_extract_sd = sapply(grids_count, function(x) extract(slope, x, fun=sd, na.rm=T))
+for (i in 1:length(grids_count)) 
+    grids_count[[i]]@data$slope_sd = slope_extract_sd[[i]]
+
+slopeofslope_extract_sd = sapply(grids_count, function(x) extract(slopeofslope, x, fun=sd, na.rm=T))
+for (i in 1:length(grids_count)) 
+    grids_count[[i]]@data$slopeofslope_sd = slopeofslope_extract_sd[[i]]
+
+backscatter_extract_sd = sapply(grids_count, function(x) extract(backscatter, x, fun=sd, na.rm=T))
+for (i in 1:length(grids_count)) 
+    grids_count[[i]]@data$backscatter_sd = backscatter_extract_sd[[i]]
+
+rugosity_extract_sd = sapply(grids_count, function(x) extract(rugosity, x, fun=sd, na.rm=T))
+for (i in 1:length(grids_count)) 
+    grids_count[[i]]@data$rugosity_sd = rugosity_extract_sd[[i]]
+
+plancurvature_extract_sd = sapply(grids_count, function(x) extract(plancurvature, x, fun=sd, na.rm=T))
+for (i in 1:length(grids_count)) 
+    grids_count[[i]]@data$plancurvature_sd = plancurvature_extract_sd[[i]]
+
+distancetoshelf_extract_sd = sapply(grids_count, function(x) extract(distancetoshelf, x, fun=sd, na.rm=T))
+for (i in 1:length(grids_count)) 
+    grids_count[[i]]@data$distancetoshelf_sd = distancetoshelf_extract_sd[[i]]
+
+endCluster()
+```
+
+merge the data frames from each of the various grain sizes contained in grids_count. extract only the columns of interest and write this tailored data frame out as a seperate file.
+```{r}
+grains = sub("m", "", names(grids_count))
+dat = data.frame(grain=grains[1], grids_count[[1]]@data)
+for(i in 2:length(grids_count)) {
+    dat = rbind(dat, data.frame(grain=grains[i], grids_count[[i]]@data))
+}
+
+cols_of_interest = c('grain', 'FishLengCm', 'Join_Count', 'depth_mean', 'slope_mean', 'slopeofslope_mean', 'backscatter_mean', 'rugosity_mean', 'plancurvature_mean', 'distancetoshelf_mean', 'depth_sd', 'slope_sd', 'slopeofslope_sd', 'backscatter_sd', 'rugosity_sd', 'plancurvature_sd', 'distancetoshelf_sd')
+dat = dat[ , cols_of_interest]
+
+write.csv(dat, paste(product_path, "grids_count.csv", sep=""), row.names=FALSE)
+```
+
+to conserve memery run rm(list = ls()) to remove all variables, then proceed to the next script within the scripts folder.
+
+
+now we can explore the relationship between abundance and environmental predictors at various grain scales. we will use a stepwise glm that fits a model following a poisson error distribution at each grain scale. the goal is to determine at which scale the model is performing best and explore which predictors are significant as the grain changes.
+
+```{r}
+poisson_glm_25 = glm(formula = Join_Count ~ depth_mean + slope_mean + slopeofslope_mean + backscatter_mean + rugosity_mean + plancurvature_mean + distancetoshelf_mean + depth_sd + slope_sd + slopeofslope_sd + backscatter_sd + rugosity_sd + plancurvature_sd + distancetoshelf_sd, family = "poisson", data = dat, subset=grain==25)
+stepAIC(poisson_glm_25)
+
+poisson_glm_50 = glm(formula = Join_Count ~ depth_mean + slope_mean + slopeofslope_mean + backscatter_mean + rugosity_mean + plancurvature_mean + distancetoshelf_mean + depth_sd + slope_sd + slopeofslope_sd + backscatter_sd + rugosity_sd + plancurvature_sd + distancetoshelf_sd, family = "poisson", data = dat, subset=grain==50)
+stepAIC(poisson_glm_50)
+
+poisson_glm_100 = glm(formula = Join_Count ~ depth_mean + slope_mean + slopeofslope_mean + backscatter_mean + rugosity_mean + plancurvature_mean + distancetoshelf_mean + depth_sd + slope_sd + slopeofslope_sd + backscatter_sd + rugosity_sd + plancurvature_sd + distancetoshelf_sd, family = "poisson", data = dat, subset=grain==100)
+stepAIC(poisson_glm_100)
+
+poisson_glm_250 = glm(formula = Join_Count ~ depth_mean + slope_mean + slopeofslope_mean + backscatter_mean + rugosity_mean + plancurvature_mean + distancetoshelf_mean + depth_sd + slope_sd + slopeofslope_sd + backscatter_sd + rugosity_sd + plancurvature_sd + distancetoshelf_sd, family = "poisson", data = dat, subset=grain==250)
+stepAIC(poisson_glm_250)
+
+poisson_glm_500 = glm(formula = Join_Count ~ depth_mean + slope_mean + slopeofslope_mean + backscatter_mean + rugosity_mean + plancurvature_mean + distancetoshelf_mean + depth_sd + slope_sd + slopeofslope_sd + backscatter_sd + rugosity_sd + plancurvature_sd + distancetoshelf_sd, family = "poisson", data = dat, subset=grain==500)
+stepAIC(poisson_glm_500)
+
+poisson_glm_1000 = glm(formula = Join_Count ~ depth_mean + slope_mean + slopeofslope_mean + backscatter_mean + rugosity_mean + plancurvature_mean + distancetoshelf_mean + depth_sd + slope_sd + slopeofslope_sd + backscatter_sd + rugosity_sd + plancurvature_sd + distancetoshelf_sd, family = "poisson", data = dat, subset=grain==1000)
+stepAIC(poisson_glm_1000)
+```

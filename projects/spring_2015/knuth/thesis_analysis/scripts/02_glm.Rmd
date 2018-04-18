@@ -1,0 +1,78 @@
+---
+title: "Generalized Linear Models"
+author: "Friedrich Knuth"
+date: "February 25, 2015"
+output: html_document
+---
+
+manually set your working directory
+
+load your libraries
+```{r}
+library(MASS)
+```
+
+set the paths to your data and output directories. required data are envrionemntal raster grids, saved as georeferences TIFF files with .tif extension and polygon ESRI shapefiles saved as .shp. to free up memory, intermediate products will be saved throughout the script.
+```{r}
+product_path = './products/'
+```
+
+load csv data created in steps 01 and 02.
+```{r}
+fish_count = read.csv(paste(product_path, "grids_count.csv", sep=""))
+fish_all = read.csv(paste(product_path, "grids_all.csv", sep=""))
+grains = unique(fish_count$grain)
+```
+
+now we can explore the relationship between abundance and environmental predictors at various grain scales. we will use a stepwise glm that fits a model following a poisson error distribution at each grain scale. the goal is to determine at which scale the model is performing best and explore which predictors are significant as the grain changes.
+
+```{r}
+pseudoR2 = function(mod) {
+    1 - (mod$deviance / mod$null.deviance)
+}
+
+fish_count = na.omit(fish_count)
+
+nullmods = mods = vector('list', length=length(grains))
+names(nullmods) = names(mods) = paste('glm', grains, sep="_")
+
+for(i in seq_along(grains)) {
+    full_mod = glm(Join_Count ~ depth_mean + slope_mean + slopeofslope_mean +
+                   backscatter_mean + rugosity_mean + plancurvature_mean +
+                   distancetoshelf_mean + depth_std +
+                   backscatter_std, family = "poisson",
+                   data = fish_count, subset=grain==grains[i])
+    mods[[i]] = stepAIC(full_mod, trace = F)
+    nullmods[[i]] = glm(Join_Count ~ 1, family = "poisson",
+                   data = fish_count, subset=grain==grains[i])
+}
+
+sapply(mods, pseudoR2)
+anova(nullmods[[1]], mods[[1]], test = "LRT")
+summary(mods[[1]])
+summary(mods[[2]])
+summary(mods[[3]])
+summary(mods[[4]])
+summary(mods[[5]])
+summary(mods[[6]])
+
+# examine residual coorelation of variables in mod 5 against backscatter
+i = 5
+mod_sub = update(mods[[5]], . ~ . - backscatter_mean)
+plot(fish_count$backscatter_mean[fish_count$grain == grains[5]], 
+     residuals(mod_sub))
+
+plot(Join_Count ~ backscatter_mean, data=fish_count, subset=grain==grains[5])
+
+abline(glm(Join_Count ~ backscatter_mean, data=fish_count, subset=grain==grains[5], 
+           family='poisson'))
+
+```
+
+
+now we can explore the relationship between fish size and environmental predictors at various grain scales. we will use a stepwise glm that fits a model following a gaussian error distribution at each grain scale. the goal is to determine at which scale the model is performing best and explore which predictors are significant as the grain changes.
+
+```{r}
+gaussian_glm = glm(formula = FishLengCm ~ ~ depth_mean + slope_mean + slopeofslope_mean + backscatter_mean + rugosity_mean + plancurvature_mean + distancetoshelf_mean + depth_std + slope_std + slopeofslope_std + backscatter_std + rugosity_std + plancurvature_std + distancetoshelf_std, family = "gaussian", data = fish_all, subset=grain==1000)
+stepAIC(gaussian_glm)
+```

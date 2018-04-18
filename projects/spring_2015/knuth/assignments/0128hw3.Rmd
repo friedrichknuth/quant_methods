@@ -1,0 +1,101 @@
+---
+title: "Homework 3"
+author: "Friedrich"
+date: "January 30, 2015"
+output: html_document
+---
+
+
+#### Q1 Using the tree's dataset develop separate models for the following species: "Acer rubrum", "Pinus strobus", "Abies fraseri". For the cover of each species which of the available explanatory variables seems to be the srongest explanatory variable?
+
+*After rummarizing the linear model below we look for the highest absolute t value and lowest p or Pr(>|t|) value*
+*The target species are best explained by the following variables:*
+*Acer rubrum = beers,* 
+*Pinus strobus = elev,*
+*Abies fraseri = elev.*
+
+```{r}
+trees = read.csv('./treedata.csv')
+mod_acer = lm(cover ~ utme + utmn + elev + tci +streamdist + disturb + beers, data= trees, subset=species == 'Acer rubrum')
+mod_pinus = lm(cover ~ utme + utmn + elev + tci +streamdist + disturb + beers, data= trees, subset=species == 'Pinus strobus')
+mod_abies = lm(cover ~ utme + utmn + elev + tci +streamdist + disturb + beers, data= trees, subset=species == 'Abies fraseri')
+summary(mod_acer)
+summary(mod_pinus)
+summary(mod_abies)
+```
+
+#### Q2 From the tree data construct a new species richness variable which summarizes how many unique species occur in each plot. Summarize this richness variable using the summary() function. Hint: the function tapply() could be helpful in this case.
+
+*We want to know how many unique species occur in each plot. Each individual plot can be identified using plotID.* 
+```{r}
+head(unique(trees$plotID))
+head(unique(trees$species))
+```
+*Thus, we have 52 unique species distributed over 935 plots.*
+
+*Next lets apply a function accross trees that counts the number of 52unique species within each of the 935 plotIDs and summarize the results accross for each plotID.*
+```{r}
+richness = with(trees, tapply(species, plotID, FUN = function(x) length(unique(x))))
+summary(richness)
+```
+
+*Now, for good measure and in preparation for Q5, let us create a new data.frame dataset that contains the species count and all environmental data for each plotID.*
+
+```{r}
+rich_dat = data.frame(plotID = names(richness), plot_rich = richness)
+trees = merge(trees,rich_dat, by="plotID", all.x=F, all.y=T)
+```
+
+#### Q3 What kind of a variable is richness (continuous, discrete, categorical)? Given richness's properties what kind of error structure would likely be best to use when modeling this variable. Hint its not normal error.
+
+*It is discrete data because it is a count. We are counting the number of unique species in a given plot. That becomes our measure of richness. Since it is count data and the response likely follows some form of a poisson distribution, assuming this is what you mean by error structure.*
+
+#### Q4 For each of the unique plot id's extract the environmental information available for that plot.
+
+*A concatenated listed of environmental variables for each of the 935 plotIDs is contained in plot_env, after runnning the code below. Note, `tapply()` seems to create an array which turns categorical string values, such as seen under the disturb column, into quanititive variables by assigning numeric values. These may still act as categories in modeling, but it is a transformation to be aware of.*
+
+
+```{r}
+utme = with(trees, tapply(utme, plotID, FUN = function(x) unique(x)))
+utme_dat = data.frame(plotID = names(utme), plot_utme = utme)
+
+utmn = with(trees, tapply(utmn, plotID, FUN = function(x) unique(x)))
+utmn_dat = data.frame(plotID = names(utmn), plot_utmn = utmn)
+
+elev = with(trees, tapply(elev, plotID, FUN = function(x) unique(x)))
+elev_dat = data.frame(plotID = names(elev), plot_elev = elev)
+    
+tci = with(trees, tapply(tci, plotID, FUN = function(x) unique(x)))
+tci_dat = data.frame(plotID = names(tci), plot_tci = tci)
+
+streamdist = with(trees, tapply(streamdist, plotID, FUN = function(x) unique(x)))
+streamdist_dat = data.frame(plotID = names(streamdist), plot_streamdist = streamdist)
+
+disturb = with(trees, tapply(disturb, plotID, FUN = function(x) unique(x)))
+disturb_dat = data.frame(plotID = names(disturb), plot_disturb = disturb)
+
+beers = with(trees, tapply(beers, plotID, FUN = function(x) unique(x)))
+beers_dat = data.frame(plotID = names(beers), plot_beers = beers)
+                       
+plot_env1 = merge(utme_dat, utmn_dat, by="plotID", all=TRUE)
+plot_env2 = merge(plot_env1, elev_dat, by="plotID", all=TRUE)
+plot_env3 = merge(plot_env2, tci_dat, by="plotID", all=TRUE)
+plot_env4 = merge(plot_env3, streamdist_dat, by="plotID", all=TRUE)
+plot_env5 = merge(plot_env4, disturb_dat, by="plotID", all=TRUE)
+plot_env = merge(plot_env5, beers_dat, by="plotID", all=TRUE)
+```
+
+#### Q5 Construct a model of richness using the glm() function. See Chp 13 in The R book by Crawley. Use the stepAIC() function to carry out a forward and also a backward stepwise selection of a best fitting model. Compare the results of this to the classic function step() Which model appears to be the best according to each approach? Why do you think this approach could be considered "dangerous" or potentially misleading?
+
+*It seems that `step()` and `stepAIC()` run the same operation by using AIC to select the best model. I am a bit confuded however, since I thought the lowest AIC indicates the best model. The output for "backward"" shows the selection process continuing to remove variables, even with the AIC increasing. The best model seems to be the one containing all 7 environmental varaible, with an AIC of 45998.4. Why continue to remove variables? In turn the "forward" model seems to just spit out one model. I would have expected it to add 1 of 7 variables step by step.*
+```{r}
+library(MASS)
+mod_rich = glm(plot_rich ~ utme + utmn + elev + tci +streamdist + disturb + beers, family = poisson, data = trees )
+stepAIC(mod_rich, direction = "backward")
+stepAIC(mod_rich, direction = "forward")
+step(mod_rich, direction = "backward")
+step(mod_rich, direction = "forward")
+```
+
+#### Addendum
+*As discussed via git, I seem to have created some issue prior to merging `rich_dat` back into `trees` in Q2. My workaround is `trees_wa = merge(rich_dat, plot_env, by="plotID", all=TRUE)` This creates a data.frame which contains only the 935 plots, the count for species richness within and the environmental varaibles associated with each plot. However, since each plot has more than one entry for a given environmental variable associated with it, which is expressed as a list and can be seen by scrolling down on the table `View(trees_wa)`, `trees_wa` is not accepted as an input for the glm()*
